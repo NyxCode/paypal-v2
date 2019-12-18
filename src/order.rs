@@ -43,10 +43,10 @@ pub async fn capture_order(token: &AccessToken, id: &str) -> Result<OrderDetails
         return Err(format!("API error: {}", response.status()).into());
     }
 
-    let response = response.body_json().await?;
+    let response: OrderDetails = response.body_json().await?;
 
     if response.status != OrderStatus::Completed {
-        return Err(format!("Unexpected state of order: {}", response.status).into());
+        return Err(format!("Unexpected state of order: {:?}", response.status).into());
     }
 
     Ok(response)
