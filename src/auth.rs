@@ -14,12 +14,6 @@ pub struct AccessToken {
     pub expires_in: u64,
 }
 
-impl AsRef<str> for AccessToken {
-    fn as_ref(&self) -> &str {
-        &self.token
-    }
-}
-
 #[derive(Clone)]
 pub struct RefreshingAccessToken(Arc<RwLock<AccessToken>>);
 
@@ -50,7 +44,7 @@ impl RefreshingAccessToken {
 
 impl AccessToken {
     pub async fn get(id: &str, secret: &str) -> Result<AccessToken, Exception> {
-        info!("refreshing access token..");
+        info!("acquiring access token..");
         let url = format!("{}/v1/oauth2/token?grant_type=client_credentials", ENDPOINT);
         let basic_auth = format!("Basic {}", base64::encode(&format!("{}:{}", id, secret)));
 
@@ -61,7 +55,7 @@ impl AccessToken {
             .recv_json()
             .await?;
 
-        info!("successfully refreshed access token!");
+        info!("successfully acquired access token!");
 
         Ok(response)
     }

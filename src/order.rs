@@ -1,15 +1,28 @@
 use crate::auth::AccessToken;
-use crate::{Amount, ApplicationContext, ENDPOINT};
+use crate::{Amount, ApplicationContext, ENDPOINT, LinkDescription};
 use serde::{Deserialize, Serialize};
 use surf::Exception;
 
 pub async fn create_order(
     token: &AccessToken,
     new: &CreateOrder,
-) -> Result<CreateOrderResponse, Exception> {
+) -> Result<OrderDetails, Exception> {
     let mut response = surf::post(format!("{}/v2/checkout/orders", ENDPOINT))
-        .set_header("Authorization", format!("Bearer {}", token.as_ref()))
+        .set_header("Authorization", format!("Bearer {}", &token.token))
         .body_json(new)?
+        .await?;
+
+
+    if !response.status().is_success() {
+        return Err(format!("API error: {}", response.status()).into());
+    }
+
+    Ok(response.body_json().await?)
+}
+
+pub async fn get_order(token: &AccessToken, id: &str) -> Result<OrderDetails, Exception> {
+    let mut response = surf::get(format!("{}/v2/checkout/orders/{}", ENDPOINT, id))
+        .set_header("Authorization", format!("Bearer {}", &token.token))
         .await?;
 
     if !response.status().is_success() {
@@ -17,6 +30,26 @@ pub async fn create_order(
     }
 
     Ok(response.body_json().await?)
+}
+
+pub async fn capture_order(token: &AccessToken, id: &str) -> Result<OrderDetails, Exception> {
+    let mut response = surf::post(format!("{}/v2/checkout/orders/{}/capture", ENDPOINT, id))
+        .set_header("Authorization", format!("Bearer {}", &token.token))
+        .body_string("{}".to_owned())
+        .set_mime(surf::mime::APPLICATION_JSON)
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(format!("API error: {}", response.status()).into());
+    }
+
+    let response = response.body_json().await?;
+
+    if response.status != OrderStatus::Completed {
+        return Err(format!("Unexpected state of order: {}", response.status).into());
+    }
+
+    Ok(response)
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -27,12 +60,13 @@ pub struct CreateOrder {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct CreateOrderResponse {
+pub struct OrderDetails {
     pub id: String,
     pub status: OrderStatus,
+    pub links: Vec<LinkDescription>
 }
 
-#[derive(Serialize, Deserialize, Copy, Clone, Debug)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum OrderStatus {
     Created,
@@ -46,9 +80,7 @@ pub enum OrderStatus {
 #[serde(rename_all = "UPPERCASE")]
 pub enum OrderIntent {
     #[default]
-    #[serde(rename = "CAPTURE")]
     Capture,
-    #[serde(rename = "AUTHORIZE")]
     Authorize,
 }
 
