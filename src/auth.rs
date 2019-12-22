@@ -41,10 +41,8 @@ impl RefreshingAccessToken {
         Ok(token)
     }
 
-    pub fn current(&self) -> AccessToken {
-        async_std::task::block_on(async {
-            self.0.deref().read().await.clone()
-        })
+    pub async fn current(&self) -> AccessToken {
+        self.0.deref().read().await.clone()
     }
 }
 
