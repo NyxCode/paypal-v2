@@ -15,9 +15,9 @@ pub use order::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LinkDescription {
-    href: String,
-    rel: String,
-    method: String
+    pub href: String,
+    pub rel: String,
+    pub method: String
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
