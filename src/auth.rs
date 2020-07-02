@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -16,49 +17,66 @@ pub struct AccessToken {
     pub expires_in: u64,
 }
 
-#[derive(Clone)]
-pub struct RefreshingAccessToken(Arc<Mutex<AccessToken>>);
+pub struct RefreshingAccessToken {
+    token: Arc<Mutex<AccessToken>>,
+    pub join_handle: JoinHandle<Result<()>>,
+    pub shutdown: oneshot::Sender<()>,
+}
 
 fn refresh_in(secs: u64) -> Duration {
     Duration::from_secs(secs.saturating_sub(10))
 }
 
-impl RefreshingAccessToken {
-    async fn refresh_periodically(self, client: Client, id: String, secret: String) -> Error {
-        let mut timeout = refresh_in(self.0.lock().expires_in);
-        loop {
-            info!("refreshing access token in {:?}", timeout);
-            tokio::time::delay_for(timeout).await;
+async fn refresh_periodically(
+    token: Arc<Mutex<AccessToken>>,
+    client: Client,
+    id: String,
+    secret: String,
+) -> Error {
+    let mut timeout = refresh_in(token.lock().expires_in);
+    loop {
+        info!("refreshing access token in {:?}", timeout);
+        tokio::time::delay_for(timeout).await;
 
-            *self.0.lock() = match AccessToken::get(&client, &id, &secret).await {
-                Ok(token) => {
-                    timeout = refresh_in(token.expires_in);
-                    token
-                },
-                Err(err) => return err,
-            };
-        }
+        *token.lock() = match AccessToken::get(&client, &id, &secret).await {
+            Ok(token) => {
+                timeout = refresh_in(token.expires_in);
+                token
+            }
+            Err(err) => return err,
+        };
     }
+}
 
+impl RefreshingAccessToken {
     pub async fn refreshing(
         client: &Client,
         id: impl Into<String>,
         secret: impl Into<String>,
-    ) -> Result<(Self, JoinHandle<Error>)> {
+    ) -> Result<Self> {
         let id = id.into();
         let secret = secret.into();
 
-        let initial = AccessToken::get(client, &id, &secret).await?;
-        let token = RefreshingAccessToken(Arc::new(Mutex::new(initial)));
+        let initial = Arc::new(Mutex::new(AccessToken::get(client, &id, &secret).await?));
+        let refresh_future = refresh_periodically(initial.clone(), client.clone(), id, secret);
 
-        let refresh_future = token.clone().refresh_periodically(client.clone(), id, secret);
-        let handle = tokio::task::spawn(refresh_future);
+        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        let join_handle = tokio::task::spawn(async move {
+            tokio::select! {
+                _ = shutdown_rx => Ok(()),
+                other = refresh_future => Err(other)
+            }
+        });
 
-        Ok((token, handle))
+        Ok(RefreshingAccessToken {
+            token: initial,
+            join_handle,
+            shutdown: shutdown_tx,
+        })
     }
 
     pub fn current(&self) -> AccessToken {
-        self.0.deref().lock().clone()
+        self.token.deref().lock().clone()
     }
 }
 
