@@ -63,8 +63,14 @@ impl RefreshingAccessToken {
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         let join_handle = tokio::task::spawn(async move {
             tokio::select! {
-                _ = shutdown_rx => Ok(()),
-                other = refresh_future => Err(other)
+                _ = shutdown_rx =>  {
+                    info!("stopping to refresh token");
+                    Ok(())
+                }
+                other = refresh_future => {
+                    error!("refreshing token failed: {}", other);
+                    Err(other)
+                }
             }
         });
 
