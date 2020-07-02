@@ -6,7 +6,7 @@ extern crate log;
 extern crate smart_default;
 
 use serde::{Deserialize, Serialize};
-
+use thiserror::Error;
 mod auth;
 mod order;
 
@@ -14,7 +14,7 @@ pub use auth::*;
 pub use order::*;
 use reqwest::Response;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error)]
 pub enum Error {
     #[error("http request failed: {0}")]
     Http(#[from] reqwest::Error),
@@ -66,9 +66,9 @@ pub enum UserAction {
     PayNow,
 }
 
-#[cfg(not(feature="production"))]
+#[cfg(not(feature = "production"))]
 pub(crate) const ENDPOINT: &str = "https://api.sandbox.paypal.com";
-#[cfg(feature="production")]
+#[cfg(feature = "production")]
 pub(crate) const ENDPOINT: &str = "https://api.paypal.com";
 
 impl Amount {

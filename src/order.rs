@@ -1,9 +1,9 @@
 use crate::auth::AccessToken;
 use crate::{check_success, Amount, ApplicationContext, Error, LinkDescription, Result, ENDPOINT};
+use reqwest::header::ACCEPT;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use reqwest::header::ACCEPT;
 
 pub async fn create_order(
     client: &Client,
@@ -22,11 +22,7 @@ pub async fn create_order(
     Ok(response.json().await?)
 }
 
-pub async fn get_order(
-    client: &Client,
-    token: &AccessToken,
-    id: &str,
-) -> Result<OrderDetails> {
+pub async fn get_order(client: &Client, token: &AccessToken, id: &str) -> Result<OrderDetails> {
     let response = client
         .get(&format!("{}/v2/checkout/orders/{}", ENDPOINT, id))
         .header(ACCEPT, "application/json")
@@ -38,11 +34,7 @@ pub async fn get_order(
     Ok(response.json().await?)
 }
 
-pub async fn capture_order(
-    client: &Client,
-    token: &AccessToken,
-    id: &str,
-) -> Result<OrderDetails> {
+pub async fn capture_order(client: &Client, token: &AccessToken, id: &str) -> Result<OrderDetails> {
     let response = client
         .post(&format!("{}/v2/checkout/orders/{}/capture", ENDPOINT, id))
         .bearer_auth(&token.token)
