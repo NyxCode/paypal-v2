@@ -1,55 +1,67 @@
 use crate::auth::AccessToken;
-use crate::{Amount, ApplicationContext, ENDPOINT, LinkDescription};
+use crate::{check_success, Amount, ApplicationContext, Error, LinkDescription, Result, ENDPOINT};
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use surf::Exception;
+use std::collections::HashMap;
+use reqwest::header::ACCEPT;
 
 pub async fn create_order(
+    client: &Client,
     token: &AccessToken,
     new: &CreateOrder,
-) -> Result<OrderDetails, Exception> {
-    let mut response = surf::post(format!("{}/v2/checkout/orders", ENDPOINT))
-        .set_header("Authorization", format!("Bearer {}", &token.token))
-        .body_json(new)?
+) -> Result<OrderDetails> {
+    let response = client
+        .post(&format!("{}/v2/checkout/orders", ENDPOINT))
+        .bearer_auth(&token.token)
+        .header(ACCEPT, "application/json")
+        .json(&new)
+        .send()
         .await?;
 
-
-    if !response.status().is_success() {
-        return Err(format!("API error: {}", response.status()).into());
-    }
-
-    Ok(response.body_json().await?)
+    check_success(&response)?;
+    Ok(response.json().await?)
 }
 
-pub async fn get_order(token: &AccessToken, id: &str) -> Result<OrderDetails, Exception> {
-    let mut response = surf::get(format!("{}/v2/checkout/orders/{}", ENDPOINT, id))
-        .set_header("Authorization", format!("Bearer {}", &token.token))
+pub async fn get_order(
+    client: &Client,
+    token: &AccessToken,
+    id: &str,
+) -> Result<OrderDetails> {
+    let response = client
+        .get(&format!("{}/v2/checkout/orders/{}", ENDPOINT, id))
+        .header(ACCEPT, "application/json")
+        .bearer_auth(&token.token)
+        .send()
         .await?;
 
-    if !response.status().is_success() {
-        return Err(format!("API error: {}", response.status()).into());
-    }
-
-    Ok(response.body_json().await?)
+    check_success(&response)?;
+    Ok(response.json().await?)
 }
 
-pub async fn capture_order(token: &AccessToken, id: &str) -> Result<OrderDetails, Exception> {
-    let mut response = surf::post(format!("{}/v2/checkout/orders/{}/capture", ENDPOINT, id))
-        .set_header("Authorization", format!("Bearer {}", &token.token))
-        .body_string("{}".to_owned())
-        .set_mime(surf::mime::APPLICATION_JSON)
+pub async fn capture_order(
+    client: &Client,
+    token: &AccessToken,
+    id: &str,
+) -> Result<OrderDetails> {
+    let response = client
+        .post(&format!("{}/v2/checkout/orders/{}/capture", ENDPOINT, id))
+        .bearer_auth(&token.token)
+        .header(ACCEPT, "application/json")
+        .json(&HashMap::<(), ()>::new())
+        .send()
         .await?;
 
-    if !response.status().is_success() {
-        return Err(format!("API error: {}", response.status()).into());
-    }
-
-    let response: OrderDetails = response.body_json().await?;
+    check_success(&response)?;
+    let response = response.json::<OrderDetails>().await?;
 
     if response.status != OrderStatus::Completed {
-        return Err(format!("Unexpected state of order: {:?}", response.status).into());
+        Err(Error::Api(format!(
+            "Unexpected state of order: {:?}",
+            response.status
+        )))
+    } else {
+        Ok(response)
     }
-
-    Ok(response)
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -63,7 +75,7 @@ pub struct CreateOrder {
 pub struct OrderDetails {
     pub id: String,
     pub status: OrderStatus,
-    pub links: Vec<LinkDescription>
+    pub links: Vec<LinkDescription>,
 }
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
