@@ -43,10 +43,8 @@ pub async fn capture_order(client: &Client, token: &AccessToken, id: &str) -> Re
         .send()
         .await?;
 
-    if let Err(err) = check_success(&response) {
-        error!("{:?}", response.text().await);
-        return Err(err);
-    }
+    check_success(&response)?;
+
     let response = response.json::<OrderDetails>().await?;
 
     if response.status != OrderStatus::Completed {
