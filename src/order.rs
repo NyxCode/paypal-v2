@@ -39,11 +39,13 @@ pub async fn capture_order(client: &Client, token: &AccessToken, id: &str) -> Re
         .post(&format!("{}/v2/checkout/orders/{}/capture", ENDPOINT, id))
         .bearer_auth(&token.token)
         .header(ACCEPT, "application/json")
-        .json(&HashMap::<(), ()>::new())
         .send()
         .await?;
 
-    check_success(&response)?;
+    if let Err(err) = check_success(&response) {
+        error!("{:?}", response.text().await);
+        return Err(err);
+    }
     let response = response.json::<OrderDetails>().await?;
 
     if response.status != OrderStatus::Completed {

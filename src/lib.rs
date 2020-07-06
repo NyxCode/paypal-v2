@@ -84,6 +84,8 @@ fn check_success(response: &Response) -> Result<()> {
     if response.status().is_success() {
         Ok(())
     } else {
-        Err(Error::Status(response.status().as_u16()))
+        Err(Error::Status(
+            response.status().as_u16(),
+        ))
     }
 }
