@@ -1,6 +1,6 @@
 use crate::auth::AccessToken;
 use crate::{check_success, Amount, ApplicationContext, Error, LinkDescription, Result, ENDPOINT};
-use reqwest::header::ACCEPT;
+use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -38,6 +38,8 @@ pub async fn capture_order(client: &Client, token: &AccessToken, id: &str) -> Re
     let response = client
         .post(&format!("{}/v2/checkout/orders/{}/capture", ENDPOINT, id))
         .bearer_auth(&token.token)
+        .header(CONTENT_TYPE, "application/json")
+        .header(ACCEPT, "application/json")
         .send()
         .await?;
 
