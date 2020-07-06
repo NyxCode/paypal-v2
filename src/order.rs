@@ -38,7 +38,6 @@ pub async fn capture_order(client: &Client, token: &AccessToken, id: &str) -> Re
     let response = client
         .post(&format!("{}/v2/checkout/orders/{}/capture", ENDPOINT, id))
         .bearer_auth(&token.token)
-        .header(ACCEPT, "application/json")
         .send()
         .await?;
 
