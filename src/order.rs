@@ -3,7 +3,6 @@ use crate::{check_success, Amount, ApplicationContext, Error, LinkDescription, R
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 pub async fn create_order(
     client: &Client,

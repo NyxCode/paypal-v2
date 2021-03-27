@@ -5,7 +5,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::stream::Stream;
+use tokio_stream::Stream;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AccessToken {
@@ -28,7 +28,7 @@ impl AccessToken {
             let client = client.clone();
             async move {
                 if delay > 0 {
-                    tokio::time::delay_for(Duration::from_secs(delay)).await;
+                    tokio::time::sleep(Duration::from_secs(delay)).await;
                 }
 
                 let (id, secret) = &*credentials;
