@@ -1,9 +1,13 @@
-use crate::auth::AccessToken;
-use crate::{check_success, Amount, ApplicationContext, Error, LinkDescription, Result, ENDPOINT};
-use reqwest::header::{ACCEPT, CONTENT_TYPE};
-use reqwest::Client;
+use reqwest::{
+    header::{ACCEPT, CONTENT_TYPE},
+    Client,
+};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+
+use crate::{
+    auth::AccessToken, check_success, Amount, ApplicationContext, Error, LinkDescription, Result,
+    ENDPOINT,
+};
 
 pub async fn create_order(
     client: &Client,

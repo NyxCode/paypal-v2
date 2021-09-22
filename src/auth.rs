@@ -1,11 +1,13 @@
-use crate::Result;
-use crate::ENDPOINT;
-use reqwest::header::{ACCEPT, ACCEPT_LANGUAGE};
-use reqwest::Client;
+use std::{sync::Arc, time::Duration};
+
+use futures::Stream;
+use reqwest::{
+    header::{ACCEPT, ACCEPT_LANGUAGE},
+    Client,
+};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::stream::Stream;
+
+use crate::{Result, ENDPOINT};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AccessToken {
@@ -28,11 +30,11 @@ impl AccessToken {
             let client = client.clone();
             async move {
                 if delay > 0 {
-                    tokio::time::delay_for(Duration::from_secs(delay)).await;
+                    tokio::time::sleep(Duration::from_secs(delay)).await;
                 }
 
                 let (id, secret) = &*credentials;
-                let token = AccessToken::acquire(&client, &id, &secret).await?;
+                let token = AccessToken::acquire(&client, id, secret).await?;
                 let expires_in = token.expires_in;
                 Ok(Some((token, expires_in)))
             }
